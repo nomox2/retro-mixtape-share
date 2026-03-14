@@ -24,6 +24,13 @@ const DEFAULT_TAPES: Tape[] = [
     artist: '이찬혁',
     url: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c5/55/24/c55524da-c79e-8c87-547c-785ddd7dd65f/mzaf_4710721138193236013.plus.aac.p.m4a',
     color: 'bg-[#fcd34d]'
+  },
+  {
+    id: '3',
+    title: '주저하는 연인들을 위해',
+    artist: '잔나비',
+    url: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/b1/a4/0a/b1a40a3e-65ca-f51b-3bb9-12145d970895/mzaf_509885747699732949.plus.aac.p.m4a',
+    color: 'bg-purple-400'
   }
 ];
 
