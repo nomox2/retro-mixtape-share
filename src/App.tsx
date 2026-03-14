@@ -30,6 +30,13 @@ const DEFAULT_TAPES: Tape[] = [
     title: '주저하는 연인들을 위해',
     artist: '잔나비',
     url: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/b1/a4/0a/b1a40a3e-65ca-f51b-3bb9-12145d970895/mzaf_509885747699732949.plus.aac.p.m4a',
+    color: 'bg-orange-400'
+  },
+  {
+    id: '4',
+    title: '희재',
+    artist: '성시경',
+    url: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/2f/82/e1/2f82e17b-9448-05cc-34ff-1ce40d9fc253/mzaf_3639626922714453883.plus.aac.p.m4a',
     color: 'bg-purple-400'
   }
 ];
