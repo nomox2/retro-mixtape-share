@@ -160,7 +160,7 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#9bc4c5] flex items-center justify-center p-8 font-sans relative overflow-hidden"
+      className="min-h-screen bg-[#9bc4c5] flex items-center justify-center px-[20px] py-8 md:px-0 font-sans relative overflow-hidden"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
@@ -199,7 +199,7 @@ export default function App() {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 justify-items-center">
             {tapes.map(tape => (
               <div 
                 key={tape.id} 
@@ -283,7 +283,7 @@ const Walkman = ({ activeTape, isPlaying, onPlay, onPause, onStop, onEject, onDr
 
   return (
     <div 
-      className={`relative w-[380px] h-[640px] bg-[#e3e2d6] rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.4),inset_0_2px_10px_rgba(255,255,255,0.8)] border border-[#c4c3b8] flex flex-col p-5 z-10 shrink-0 transition-all duration-300 ${isDragOver ? 'ring-4 ring-blue-400/50' : ''}`}
+      className={`relative w-full max-w-[380px] h-[640px] bg-[#e3e2d6] rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.4),inset_0_2px_10px_rgba(255,255,255,0.8)] border border-[#c4c3b8] flex flex-col p-5 z-10 shrink-0 transition-all duration-300 ${isDragOver ? 'ring-4 ring-blue-400/50' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={(e) => {
