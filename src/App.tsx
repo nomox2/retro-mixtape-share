@@ -82,7 +82,7 @@ export default function App() {
   });
   const [activeTape, setActiveTape] = useState<Tape | null>(null);
   const [giftSender, setGiftSender] = useState<string | null>(null);
-  const [tapes, setTapes] = useState<Tape[]>(isGiftMode ? [] : getVisibleDefaults());
+  const [tapes, setTapes] = useState<Tape[]>(isGiftMode ? [] : DEFAULT_TAPES);
   const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -99,7 +99,7 @@ export default function App() {
       if (session?.user) {
         fetchMixtapes(session.user.id);
       } else if (!isGiftMode) {
-        setTapes(getVisibleDefaults());
+        setTapes(DEFAULT_TAPES);
       }
     });
     return () => subscription.unsubscribe();
@@ -138,7 +138,7 @@ export default function App() {
         return [...dbTapes, ...sharedTapes];
       });
     } else {
-      setTapes([...dbTapes, ...getVisibleDefaults()]);
+      setTapes(dbTapes);
     }
   }, [isGiftMode]);
 
@@ -323,7 +323,8 @@ export default function App() {
   };
 
   const canDeleteTape = (tape: Tape) => {
-    if (DEFAULT_TAPE_IDS.has(tape.id) || tape.id.startsWith("shared-")) return true;
+    if (DEFAULT_TAPE_IDS.has(tape.id)) return !!user;
+    if (tape.id.startsWith("shared-")) return true;
     if (!tape.user_id) return true;
     if (user && tape.user_id === user.id) return true;
     return false;
@@ -986,7 +987,7 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
           <div>
             <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-2">Tape Color</label>
             <div className="flex gap-2">
-              {["bg-[#fcd34d]", "bg-orange-400", "bg-[#f49ac1]", "bg-blue-400", "bg-green-400", "bg-purple-400"].map((c) => (
+              {["bg-[#fcd34d]", "bg-orange-400", "bg-[#f49ac1]", "bg-blue-400", "bg-green-400", "bg-purple-400", "bg-red-400", "bg-[#a8d8ea]", "bg-[#e6c9a8]", "bg-gray-400"].map((c) => (
                 <button
                   key={c}
                   type="button"
