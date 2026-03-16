@@ -157,52 +157,81 @@ export default function App() {
 
     if (!sharedId) return;
 
-    // 새 공유 ID를 localStorage에 저장
-    const saved: string[] = JSON.parse(localStorage.getItem("receivedTapes") || "[]");
-    if (!saved.includes(sharedId)) {
-      saved.push(sharedId);
-      localStorage.setItem("receivedTapes", JSON.stringify(saved));
-    }
+    supabase
+      .from("mixtapes")
+      .select("*")
+      .eq("id", sharedId)
+      .single()
+      .then(async ({ data: original }) => {
+        if (!original) return;
 
-    // 비로그인: 현재 공유 테이프 1개만 로드 / 로그인: 받은 테이프 모두 로드
-    const idsToLoad = user
-      ? JSON.parse(localStorage.getItem("receivedTapes") || "[]")
-      : [sharedId];
+        const sharedTape: Tape = {
+          id: String(original.id),
+          title: original.title,
+          artist: original.artist,
+          url: original.preview_url,
+          color: original.color || "bg-[#f49ac1]",
+          user_id: original.user_id ?? null,
+          sender_name: original.sender_name ?? null,
+          recipient_name: original.recipient_name ?? null,
+        };
 
-    if (idsToLoad.length > 0) {
-      supabase
-        .from("mixtapes")
-        .select("*")
-        .in("id", idsToLoad)
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            const receivedTapes: Tape[] = data.map((item: any) => ({
-              id: String(item.id),
-              title: item.title,
-              artist: item.artist,
-              url: item.preview_url,
-              color: item.color || "bg-[#f49ac1]",
-              user_id: item.user_id ?? null,
-              sender_name: item.sender_name ?? null,
-              recipient_name: item.recipient_name ?? null,
-            }));
-            setTapes((prev) => {
-              const newTapes = receivedTapes.filter((rt) => !prev.some((t) => t.id === rt.id));
-              return [...prev, ...newTapes];
-            });
+        // 로그인 상태: 내 컬렉션에 복제
+        if (user && original.user_id !== user.id) {
+          // 이미 복제한 적 있는지 확인 (같은 곡 + 같은 sender)
+          const { data: existing } = await supabase
+            .from("mixtapes")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("title", original.title)
+            .eq("artist", original.artist)
+            .eq("sender_name", original.sender_name ?? "")
+            .limit(1);
 
-            // 새로 받은 테이프만 워크맨에 삽입 애니메이션
-            if (sharedId) {
-              const newTape = receivedTapes.find((t) => t.id === sharedId);
-              if (newTape) {
-                setTimeout(() => {
-                  setActiveTape(newTape);
-                }, 1000);
-              }
+          if (!existing || existing.length === 0) {
+            const { data: inserted } = await supabase
+              .from("mixtapes")
+              .insert({
+                title: original.title,
+                artist: original.artist,
+                preview_url: original.preview_url,
+                color: original.color,
+                cover_image: original.cover_image,
+                user_id: user.id,
+                sender_name: original.sender_name,
+                recipient_name: original.recipient_name,
+              })
+              .select()
+              .single();
+
+            if (inserted) {
+              const clonedTape: Tape = {
+                id: String(inserted.id),
+                title: inserted.title,
+                artist: inserted.artist,
+                url: inserted.preview_url,
+                color: inserted.color || "bg-[#f49ac1]",
+                user_id: inserted.user_id,
+                sender_name: inserted.sender_name,
+                recipient_name: inserted.recipient_name,
+              };
+              setTapes((prev) => [clonedTape, ...prev.filter((t) => t.id !== clonedTape.id)]);
+              setTimeout(() => setActiveTape(clonedTape), 1000);
+              return;
             }
+          } else {
+            // 이미 있으면 기존 테이프를 워크맨에 삽입
+            await fetchMixtapes(user.id);
           }
+        }
+
+        // 비로그인: 임시로 표시만
+        setTapes((prev) => {
+          if (prev.some((t) => t.id === sharedTape.id)) return prev;
+          return [...prev, sharedTape];
         });
-    }
+        setTimeout(() => setActiveTape(sharedTape), 1000);
+      });
   }, [user]);
 
   useEffect(() => {
