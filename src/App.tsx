@@ -425,7 +425,14 @@ export default function App() {
             <h2 className="text-[#1a3050] text-3xl font-serif italic tracking-widest font-bold">Mixtapes</h2>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  if (!user) {
+                    setToast("로그인 후 추가할 수 있습니다");
+                    setTimeout(() => setToast(""), 3000);
+                    return;
+                  }
+                  setShowAddModal(true);
+                }}
                 className="flex items-center gap-2 bg-[#1a3050]/10 hover:bg-[#1a3050]/20 text-[#1a3050] px-4 py-2 rounded-full backdrop-blur-sm border border-[#1a3050]/20 transition-all cursor-pointer shadow-sm"
               >
                 <Plus size={18} />
