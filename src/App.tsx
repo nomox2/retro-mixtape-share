@@ -276,7 +276,7 @@ export default function App() {
     if (activeTape && !audioError) {
       playerRef.current?.play();
       setIsPlaying(true);
-      setToast("iTunes의 저작권 정책으로 30초만 재생됩니다");
+      setToast("iTunes의 저작권 정책으로 30초만 재생됩니다\nOnly 30 seconds available due to iTunes policy");
       setTimeout(() => setToast(""), 5000);
     }
   };
@@ -314,7 +314,7 @@ export default function App() {
 
   const handleShare = (tape: Tape) => {
     if (!user) {
-      setToast("로그인 후 공유할 수 있습니다");
+      setToast("로그인 후 공유할 수 있습니다\nPlease log in to share");
       setTimeout(() => setToast(""), 3000);
       return;
     }
@@ -427,7 +427,7 @@ export default function App() {
               <button
                 onClick={() => {
                   if (!user) {
-                    setToast("로그인 후 추가할 수 있습니다");
+                    setToast("로그인 후 추가할 수 있습니다\nPlease log in to create");
                     setTimeout(() => setToast(""), 3000);
                     return;
                   }
@@ -1075,7 +1075,7 @@ const ShareModal = ({ isOpen, onClose, tape, onShared, setToast }: {
 
     const shareUrl = window.location.origin + "/#?id=" + tape.id;
     navigator.clipboard.writeText(shareUrl);
-    setToast("Link copied! Share it with friends.");
+    setToast("링크가 복사되었습니다!\nLink copied! Share it with friends.");
     setTimeout(() => setToast(""), 5000);
 
     setSaving(false);
