@@ -731,11 +731,9 @@ const CassetteTape = ({ tape, isSpinning, onClick, className = "" }: any) => {
 
         <div className="h-8 w-full px-3 py-1 flex justify-between items-center bg-[#f8f9fa] border-t border-gray-300">
           <div className="font-bold text-gray-800 text-sm">C-90</div>
-          {tape.sender_name || tape.recipient_name ? (
-            <div className="flex gap-2 text-[10px] font-bold text-gray-500 font-mono truncate max-w-[65%]">
-              {tape.recipient_name && <span>to. {tape.recipient_name}</span>}
-              {tape.recipient_name && tape.sender_name && <span>/</span>}
-              {tape.sender_name && <span>from. {tape.sender_name}</span>}
+          {tape.sender_name ? (
+            <div className="text-[10px] font-bold text-gray-500 font-mono truncate max-w-[65%]">
+              <span>from. {tape.sender_name}</span>
             </div>
           ) : (
             <div className="flex gap-2 text-[8px] font-bold text-gray-600">
@@ -810,8 +808,6 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<ITunesResult | null>(null);
   const [color, setColor] = useState("bg-[#fcd34d]");
-  const [senderName, setSenderName] = useState("");
-  const [recipientName, setRecipientName] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchItunes = useCallback((term: string) => {
@@ -860,8 +856,6 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
       color,
       cover_image: selected.artworkUrl100 || selected.artworkUrl60,
       user_id: user?.id ?? null,
-      sender_name: senderName.trim() || null,
-      recipient_name: recipientName.trim() || null,
     };
 
     const { error } = await supabase.from("mixtapes").insert(tape);
@@ -879,8 +873,6 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
     setQuery("");
     setSelected(null);
     setResults([]);
-    setSenderName("");
-    setRecipientName("");
   };
 
   const handleClose = () => {
@@ -888,8 +880,6 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
     setQuery("");
     setSelected(null);
     setResults([]);
-    setSenderName("");
-    setRecipientName("");
   };
 
   if (!isOpen) return null;
@@ -964,27 +954,6 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
               </button>
             </div>
           )}
-
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-1">To (nickname)</label>
-              <input
-                value={recipientName}
-                onChange={(e) => setRecipientName(e.target.value)}
-                className="w-full bg-white border border-gray-300 px-3 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                placeholder="예) 순둥이"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-1">From (nickname)</label>
-              <input
-                value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
-                className="w-full bg-white border border-gray-300 px-3 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                placeholder="예) 노모노모"
-              />
-            </div>
-          </div>
 
           <div>
             <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-2">Tape Color</label>
