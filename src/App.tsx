@@ -252,6 +252,7 @@ export default function App() {
 
     if (activeTape) {
       audio.src = activeTape.url;
+      audio.volume = 0.3;
       audio.load();
       setAudioError(false);
     } else {
