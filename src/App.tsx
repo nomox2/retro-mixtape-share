@@ -106,14 +106,13 @@ export default function App() {
   }, []);
 
   const fetchMixtapes = useCallback(async (userId?: string) => {
+    if (!userId) return;
+
     let query = supabase
       .from("mixtapes")
       .select("*")
+      .eq("user_id", userId)
       .order("id", { ascending: false });
-
-    if (userId) {
-      query = query.eq("user_id", userId);
-    }
 
     const { data, error } = await query;
 
