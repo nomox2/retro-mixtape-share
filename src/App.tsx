@@ -89,6 +89,8 @@ export default function App() {
   const [audioError, setAudioError] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [user, setUser] = useState<User | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareTape, setShareTape] = useState<Tape | null>(null);
 
 
   useEffect(() => {
@@ -162,14 +164,16 @@ export default function App() {
       localStorage.setItem("receivedTapes", JSON.stringify(saved));
     }
 
-    // 저장된 모든 공유 테이프 로드
-    const allReceived: string[] = JSON.parse(localStorage.getItem("receivedTapes") || "[]");
+    // 비로그인: 현재 공유 테이프 1개만 로드 / 로그인: 받은 테이프 모두 로드
+    const idsToLoad = user
+      ? JSON.parse(localStorage.getItem("receivedTapes") || "[]")
+      : [sharedId];
 
-    if (allReceived.length > 0) {
+    if (idsToLoad.length > 0) {
       supabase
         .from("mixtapes")
         .select("*")
-        .in("id", allReceived)
+        .in("id", idsToLoad)
         .then(({ data }) => {
           if (data && data.length > 0) {
             const receivedTapes: Tape[] = data.map((item: any) => ({
@@ -199,7 +203,7 @@ export default function App() {
           }
         });
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const audio = playerRef.current;
@@ -286,11 +290,8 @@ export default function App() {
       setTimeout(() => setToast(""), 3000);
       return;
     }
-
-    const shareUrl = window.location.origin + "/#?id=" + tape.id;
-    navigator.clipboard.writeText(shareUrl);
-    setToast("Link copied! Share it with friends.");
-    setTimeout(() => setToast(""), 5000);
+    setShareTape(tape);
+    setShowShareModal(true);
   };
 
   const canDeleteTape = (tape: Tape) => {
@@ -472,6 +473,16 @@ export default function App() {
         onClose={() => setShowAddModal(false)}
         onAdded={() => fetchMixtapes(user?.id)}
         user={user}
+      />
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => { setShowShareModal(false); setShareTape(null); }}
+        tape={shareTape}
+        onShared={(updatedTape: Tape) => {
+          setTapes(prev => prev.map(t => t.id === updatedTape.id ? updatedTape : t));
+        }}
+        setToast={setToast}
       />
 
       <audio ref={playerRef} style={{ display: "none" }} />
@@ -1006,6 +1017,129 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const ShareModal = ({ isOpen, onClose, tape, onShared, setToast }: {
+  isOpen: boolean;
+  onClose: () => void;
+  tape: Tape | null;
+  onShared: (updatedTape: Tape) => void;
+  setToast: (msg: string) => void;
+}) => {
+  const [senderName, setSenderName] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (tape) {
+      setSenderName(tape.sender_name || "");
+      setRecipientName(tape.recipient_name || "");
+    }
+  }, [tape]);
+
+  const handleShare = async () => {
+    if (!tape) return;
+    setSaving(true);
+
+    const trimmedSender = senderName.trim() || null;
+    const trimmedRecipient = recipientName.trim() || null;
+
+    // Only update DB if tape is not a default/local tape
+    if (!DEFAULT_TAPE_IDS.has(tape.id) && !tape.id.startsWith("shared-")) {
+      const { error } = await supabase
+        .from("mixtapes")
+        .update({ sender_name: trimmedSender, recipient_name: trimmedRecipient })
+        .eq("id", tape.id);
+
+      if (error) {
+        console.error("share update error:", error);
+        setSaving(false);
+        return;
+      }
+    }
+
+    const updatedTape: Tape = {
+      ...tape,
+      sender_name: trimmedSender,
+      recipient_name: trimmedRecipient,
+    };
+    onShared(updatedTape);
+
+    const shareUrl = window.location.origin + "/#?id=" + tape.id;
+    navigator.clipboard.writeText(shareUrl);
+    setToast("Link copied! Share it with friends.");
+    setTimeout(() => setToast(""), 5000);
+
+    setSaving(false);
+    onClose();
+  };
+
+  const handleClose = () => {
+    setSenderName("");
+    setRecipientName("");
+    onClose();
+  };
+
+  if (!isOpen || !tape) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-[#f5f5f0] p-8 rounded-2xl shadow-2xl w-[440px] border border-gray-300">
+        <h2 className="text-2xl font-serif italic font-bold text-gray-800 mb-6">Share Mixtape</h2>
+
+        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 mb-6">
+          <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
+            <Music size={18} className="text-gray-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold text-gray-900 truncate">{tape.title}</div>
+            <div className="text-xs text-gray-500 truncate">{tape.artist}</div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mb-6">
+          <div className="flex-1">
+            <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-1">To (nickname)</label>
+            <input
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+              className="w-full bg-white border border-gray-300 px-3 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="예) 순둥이"
+              autoFocus
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-mono text-gray-500 uppercase tracking-wider mb-1">From (nickname)</label>
+            <input
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              className="w-full bg-white border border-gray-300 px-3 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              placeholder="예) 노모노모"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-4 py-2 font-mono text-sm text-gray-600 hover:text-gray-900 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            disabled={saving}
+            className="px-6 py-2 font-mono text-sm rounded-md shadow-md cursor-pointer transition-all bg-gray-900 text-white hover:bg-gray-800 flex items-center gap-2"
+          >
+            <Share2 size={14} />
+            Share
+          </button>
+        </div>
       </div>
     </div>
   );
