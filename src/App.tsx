@@ -96,7 +96,7 @@ export default function App() {
   useEffect(() => {
     const { data: { subscription } } = onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user && !isGiftMode) {
+      if (session?.user) {
         fetchMixtapes(session.user.id);
       } else if (!isGiftMode) {
         setTapes(getVisibleDefaults());
