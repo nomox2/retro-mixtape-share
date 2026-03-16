@@ -149,6 +149,8 @@ export default function App() {
     });
   }, [fetchMixtapes, isGiftMode]);
 
+  const clonedRef = useRef(false);
+
   useEffect(() => {
     const hash = window.location.hash.replace(/^#\??/, "");
     const params = new URLSearchParams(hash);
@@ -176,16 +178,24 @@ export default function App() {
         };
 
         // 로그인 상태: 내 컬렉션에 복제
-        if (user && original.user_id !== user.id) {
+        if (user && original.user_id !== user.id && !clonedRef.current) {
+          clonedRef.current = true;
+
           // 이미 복제한 적 있는지 확인 (같은 곡 + 같은 sender)
-          const { data: existing } = await supabase
+          let dupQuery = supabase
             .from("mixtapes")
             .select("id")
             .eq("user_id", user.id)
             .eq("title", original.title)
-            .eq("artist", original.artist)
-            .eq("sender_name", original.sender_name ?? "")
-            .limit(1);
+            .eq("artist", original.artist);
+
+          if (original.sender_name) {
+            dupQuery = dupQuery.eq("sender_name", original.sender_name);
+          } else {
+            dupQuery = dupQuery.is("sender_name", null);
+          }
+
+          const { data: existing } = await dupQuery.limit(1);
 
           if (!existing || existing.length === 0) {
             const { data: inserted } = await supabase
@@ -218,18 +228,21 @@ export default function App() {
               setTimeout(() => setActiveTape(clonedTape), 1000);
               return;
             }
-          } else {
-            // 이미 있으면 기존 테이프를 워크맨에 삽입
-            await fetchMixtapes(user.id);
           }
+
+          // 이미 있으면 내 테이프 목록 새로고침
+          await fetchMixtapes(user.id);
+          return;
         }
 
         // 비로그인: 임시로 표시만
-        setTapes((prev) => {
-          if (prev.some((t) => t.id === sharedTape.id)) return prev;
-          return [...prev, sharedTape];
-        });
-        setTimeout(() => setActiveTape(sharedTape), 1000);
+        if (!user) {
+          setTapes((prev) => {
+            if (prev.some((t) => t.id === sharedTape.id)) return prev;
+            return [...prev, sharedTape];
+          });
+          setTimeout(() => setActiveTape(sharedTape), 1000);
+        }
       });
   }, [user]);
 
