@@ -1,9 +1,16 @@
-import { supabase, signInWithGoogle, signOut, onAuthStateChange } from "./supabase";
-import type { User } from "@supabase/supabase-js";
-
+import { supabase } from "./supabase";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Play, Square, Share2, Plus, Check, Trash2, Search, Music } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+function getDeviceId(): string {
+  let id = localStorage.getItem("deviceId");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("deviceId", id);
+  }
+  return id;
+}
 
 interface Tape {
   id: string;
@@ -88,22 +95,9 @@ export default function App() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [user, setUser] = useState<User | null>(null);
+  const deviceId = useRef(getDeviceId()).current;
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareTape, setShareTape] = useState<Tape | null>(null);
-
-
-  useEffect(() => {
-    const { data: { subscription } } = onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchMixtapes(session.user.id);
-      } else if (!isGiftMode) {
-        setTapes(DEFAULT_TAPES);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   const fetchMixtapes = useCallback(async (userId?: string) => {
     if (!userId) return;
@@ -138,16 +132,16 @@ export default function App() {
         return [...dbTapes, ...sharedTapes];
       });
     } else {
-      setTapes(dbTapes);
+      const defaults = getVisibleDefaults();
+      setTapes([...dbTapes, ...defaults]);
     }
   }, [isGiftMode]);
 
   useEffect(() => {
-    if (isGiftMode) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) fetchMixtapes(session.user.id);
-    });
-  }, [fetchMixtapes, isGiftMode]);
+    if (!isGiftMode) {
+      fetchMixtapes(deviceId);
+    }
+  }, []);
 
   const clonedRef = useRef(false);
 
@@ -177,15 +171,15 @@ export default function App() {
           recipient_name: original.recipient_name ?? null,
         };
 
-        // 로그인 상태: 내 컬렉션에 복제
-        if (user && original.user_id !== user.id && !clonedRef.current) {
+        // 내 컬렉션에 복제
+        if (original.user_id !== deviceId && !clonedRef.current) {
           clonedRef.current = true;
 
           // 이미 복제한 적 있는지 확인 (같은 곡 + 같은 sender)
           let dupQuery = supabase
             .from("mixtapes")
             .select("id")
-            .eq("user_id", user.id)
+            .eq("user_id", deviceId)
             .eq("title", original.title)
             .eq("artist", original.artist);
 
@@ -206,7 +200,7 @@ export default function App() {
                 preview_url: original.preview_url,
                 color: original.color,
                 cover_image: original.cover_image,
-                user_id: user.id,
+                user_id: deviceId,
                 sender_name: original.sender_name,
                 recipient_name: original.recipient_name,
               })
@@ -231,20 +225,18 @@ export default function App() {
           }
 
           // 이미 있으면 내 테이프 목록 새로고침
-          await fetchMixtapes(user.id);
+          await fetchMixtapes(deviceId);
           return;
         }
 
-        // 비로그인: 임시로 표시만
-        if (!user) {
-          setTapes((prev) => {
-            if (prev.some((t) => t.id === sharedTape.id)) return prev;
-            return [...prev, sharedTape];
-          });
-          setTimeout(() => setActiveTape(sharedTape), 1000);
-        }
+        // 내 테이프인 경우 그냥 표시
+        setTapes((prev) => {
+          if (prev.some((t) => t.id === sharedTape.id)) return prev;
+          return [...prev, sharedTape];
+        });
+        setTimeout(() => setActiveTape(sharedTape), 1000);
       });
-  }, [user]);
+  }, [deviceId]);
 
   useEffect(() => {
     const audio = playerRef.current;
@@ -327,20 +319,15 @@ export default function App() {
   };
 
   const handleShare = (tape: Tape) => {
-    if (!user) {
-      setToast("로그인 후 공유할 수 있습니다\nPlease log in to share");
-      setTimeout(() => setToast(""), 3000);
-      return;
-    }
     setShareTape(tape);
     setShowShareModal(true);
   };
 
   const canDeleteTape = (tape: Tape) => {
-    if (DEFAULT_TAPE_IDS.has(tape.id)) return !!user;
+    if (DEFAULT_TAPE_IDS.has(tape.id)) return true;
     if (tape.id.startsWith("shared-")) return true;
     if (!tape.user_id) return true;
-    if (user && tape.user_id === user.id) return true;
+    if (tape.user_id === deviceId) return true;
     return false;
   };
 
@@ -386,37 +373,6 @@ export default function App() {
     >
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.06)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none"></div>
 
-      <div className="fixed top-4 right-4 z-50">
-        {user ? (
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-2 bg-white/80 hover:bg-white text-[#1a3050] px-3 h-9 rounded-full backdrop-blur-sm border border-[#1a3050]/20 transition-all cursor-pointer shadow-sm"
-          >
-            {user.user_metadata?.avatar_url && (
-              <img
-                src={user.user_metadata.avatar_url}
-                alt=""
-                className="w-5 h-5 rounded-full"
-              />
-            )}
-            <span className="font-mono text-xs uppercase tracking-wider font-bold">Logout</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => signInWithGoogle()}
-            className="flex items-center gap-2 bg-white/80 hover:bg-white text-[#1a3050] px-3 h-9 rounded-full backdrop-blur-sm border border-[#1a3050]/20 transition-all cursor-pointer shadow-sm"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            <span className="font-mono text-xs uppercase tracking-wider font-bold">Login</span>
-          </button>
-        )}
-      </div>
-
       <div className="flex flex-col lg:flex-row gap-16 items-center z-10 w-full max-w-6xl justify-center">
         <div className="flex flex-col items-center gap-4 shrink-0">
           <Walkman
@@ -440,11 +396,6 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  if (!user) {
-                    setToast("로그인 후 추가할 수 있습니다\nPlease log in to create");
-                    setTimeout(() => setToast(""), 3000);
-                    return;
-                  }
                   setShowAddModal(true);
                 }}
                 className="flex items-center gap-2 bg-[#1a3050]/10 hover:bg-[#1a3050]/20 text-[#1a3050] px-4 py-2 rounded-full backdrop-blur-sm border border-[#1a3050]/20 transition-all cursor-pointer shadow-sm"
@@ -521,8 +472,8 @@ export default function App() {
       <AddTapeModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAdded={() => fetchMixtapes(user?.id)}
-        user={user}
+        onAdded={() => fetchMixtapes(deviceId)}
+        deviceId={deviceId}
       />
 
       <ShareModal
@@ -852,7 +803,7 @@ const Reel = ({ isSpinning }: any) => (
   </div>
 );
 
-const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
+const AddTapeModal = ({ isOpen, onClose, onAdded, deviceId }: any) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ITunesResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -905,7 +856,7 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, user }: any) => {
       preview_url: selected.previewUrl,
       color,
       cover_image: selected.artworkUrl100 || selected.artworkUrl60,
-      user_id: user?.id ?? null,
+      user_id: deviceId,
     };
 
     const { error } = await supabase.from("mixtapes").insert(tape);
