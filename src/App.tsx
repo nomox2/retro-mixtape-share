@@ -474,6 +474,7 @@ export default function App() {
         onClose={() => setShowAddModal(false)}
         onAdded={() => fetchMixtapes(deviceId)}
         deviceId={deviceId}
+        setToast={setToast}
       />
 
       <ShareModal
@@ -803,7 +804,7 @@ const Reel = ({ isSpinning }: any) => (
   </div>
 );
 
-const AddTapeModal = ({ isOpen, onClose, onAdded, deviceId }: any) => {
+const AddTapeModal = ({ isOpen, onClose, onAdded, deviceId, setToast }: any) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ITunesResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -863,6 +864,10 @@ const AddTapeModal = ({ isOpen, onClose, onAdded, deviceId }: any) => {
 
     if (error) {
       console.error("save error:", error);
+      if (setToast) {
+        setToast("저장에 실패했습니다. 다시 시도해주세요\nFailed to save. Please try again.");
+        setTimeout(() => setToast(""), 3000);
+      }
       return;
     }
 
